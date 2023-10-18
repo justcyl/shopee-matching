@@ -86,7 +86,7 @@ class CFG:
         }
     
 
-    MODEL_NAME = "resnet18"
+    MODEL_NAME = "eca_nfnet_l0"
     FC_DIM = 512
     MODEL_PATH = f"../input/shopee-models/{MODEL_NAME}_arc_face_epoch_{EPOCHS}_bs_{BATCH_SIZE}_margin_{MARGIN}.pt"
     FEAT_PATH = f"../input/shopee-embeddings/{MODEL_NAME}_arcface.npy"
@@ -397,7 +397,7 @@ def run_training(train_df, valid_df, test_df, destination, threshold):
             torch.save(model.state_dict(), CFG.MODEL_PATH)
 
 
-def train(df, destination="oof_resnet18_arcface", threshold=0.93):
+def train(df, destination="oof_eca_nfnet_l0_arcface", threshold=0.93):
     seed_everything(CFG.SEED)
 
     gkf = GroupKFold(n_splits=CFG.N_SPLITS)
@@ -425,7 +425,7 @@ def train(df, destination="oof_resnet18_arcface", threshold=0.93):
 
     # train = cos_search.search(train,imagefeat,destination="oof_tfidf",threshold=threshold)
 
-    # print("CV score for resnet18_arcface_{threshold}=", train.f1.mean())
+    # print("CV score for eca_nfnet_l0_arcface_{threshold}=", train.f1.mean())
 
     # TODO 从上一次的模型继续训练，需要记录最好成绩
     run_training(train_df, valid_df, test_df, destination, threshold)
@@ -465,7 +465,7 @@ def get_test_embeddings(test_df):
     gc.collect()
     return image_embeddings
 
-def eval(train, destination="oof_resnet18_only", threshold=0.36):
+def eval(train, destination="oof_eca_nfnet_l0_only", threshold=0.36):
     imagefeat=get_test_embeddings(train)
     
     print(f"got embeddings! threshold={threshold}")
@@ -482,6 +482,6 @@ def eval(train, destination="oof_resnet18_only", threshold=0.36):
     # )
     del imagefeat
 
-    print(f"CV score for resnet18_arcface_{threshold} = ", train.f1.mean())
+    print(f"CV score for eca_nfnet_l0_arcface_{threshold} = ", train.f1.mean())
 
     return train

@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
 
 sys.path.append("../input/utils")
-import get_KNN, cos_search, eval_preds
+import get_KNN, eval_preds
 
 import warnings
 
@@ -44,7 +44,7 @@ class CFG:
     ### ArcFace
     scale = 30
 
-    margin = 0.8
+    margin = 0.6
     fc_dim = 768
     seed = 2023
     classes = 11014
