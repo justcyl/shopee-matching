@@ -1,5 +1,3 @@
-*
-!source/*.py
-!source/*.ipynb
-!input/utils/
-!.gitignore
+*.*
+!*.py
+!*.ipynb
