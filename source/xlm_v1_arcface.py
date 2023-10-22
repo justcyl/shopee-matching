@@ -748,4 +748,4 @@ def eval(test_df, destination="oof_xlm_arcface", threshold=0.4):
     gc.collect()
     print(f"CV score for xlm_arcface_{threshold} = ", test_df.f1.mean())
 
-    return train
+    return test_df

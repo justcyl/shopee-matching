@@ -24,9 +24,9 @@ def get_valid_neighbors(df, embeddings, destination, threshold, KNN = 55):
     
     df[destination] = predictions
 
-    df['precision'],df['recall'],df['f1'] =  eval_preds.get_score(df['matches'], df[destination])
+    df['precision'],df['recall'],df['f1'] =  eval_preds.get_score(df['target'], df[destination])
     # if COMPUTE_CV:
-        # df['precision'],df['recall'],df['f1'] = get_score(df['matches'], df[destination])
+        # df['precision'],df['recall'],df['f1'] = get_score(df['target'], df[destination])
 
     del model, distances, indices
     gc.collect()

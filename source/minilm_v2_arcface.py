@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
 
 sys.path.append("../input/utils")
-import get_KNN, cos_search, eval_preds
+import get_KNN
 
 import warnings
 
@@ -749,4 +749,4 @@ def eval(test_df, destination="oof_minilm_arcface", threshold=0.4):
     gc.collect()
     print(f"CV score for minilm_arcface_{threshold} = ", test_df.f1.mean())
 
-    return train
+    return test_df
