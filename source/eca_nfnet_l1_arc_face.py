@@ -70,7 +70,7 @@ class CFG:
     BATCH_SIZE = 8
 
     NUM_WORKERS = 4
-    DEVICE = "cuda:0"
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     CLASSES = 11014  #!!!!!!!!!!!!!
     SCALE = 30
@@ -86,7 +86,7 @@ class CFG:
         }
     
 
-    MODEL_NAME = "eca_nfnet_l0"
+    MODEL_NAME = "eca_nfnet_l1"
     FC_DIM = 512
     MODEL_PATH = f"../input/shopee-models/{MODEL_NAME}_arc_face_epoch_{EPOCHS}_bs_{BATCH_SIZE}_margin_{MARGIN}.pt"
     FEAT_PATH = f"../input/shopee-embeddings/{MODEL_NAME}_arcface.npy"
@@ -247,13 +247,14 @@ class ShopeeModel(nn.Module):
 
         if use_fc:
             self.dropout = nn.Dropout(p=0.0)
-            # print(final_in_features,fc_dim)
             self.fc = nn.Linear(final_in_features, fc_dim)
             self.bn = nn.BatchNorm1d(fc_dim)
             self._init_params()
             final_in_features = fc_dim
 
         self.final = ArcMarginProduct(final_in_features, n_classes, s=scale, m=margin)
+        self.training=True
+        
 
     def _init_params(self):
         nn.init.xavier_normal_(self.fc.weight)
@@ -261,17 +262,25 @@ class ShopeeModel(nn.Module):
         nn.init.constant_(self.bn.weight, 1)
         nn.init.constant_(self.bn.bias, 0)
 
+    def set_training(self, training):
+        self.training = training
+        
     def forward(self, image, label):
         feature = self.extract_feat(image)
         logits = self.final(feature, label)
         return logits
+        # if self.training:
+        #     logits = self.final(feature, label)
+        #     return logits
+        # else:
+        #     return feature
 
     def extract_feat(self, x):
         batch_size = x.shape[0]
         x = self.backbone(x)
         x = self.pooling(x).view(batch_size, -1)
 
-        if self.use_fc:
+        if self.use_fc: # ???????
             x = self.dropout(x)
             x = self.fc(x)
             x = self.bn(x)
@@ -398,7 +407,7 @@ def run_training(train_df, valid_df, test_df, destination, threshold):
             torch.save(model.state_dict(), CFG.MODEL_PATH)
 
 
-def train(df, destination="oof_eca_nfnet_l0_arcface", threshold=0.93):
+def train(df, destination="oof_eca_nfnet_l1", threshold=0.93):
     seed_everything(CFG.SEED)
 
     gkf = GroupKFold(n_splits=CFG.N_SPLITS)
@@ -440,6 +449,7 @@ def get_test_embeddings(test_df):
     model = replace_activations(model, torch.nn.SiLU, Mish()) ###
     model.load_state_dict(torch.load(CFG.MODEL_PATH))
     model = model.to(CFG.DEVICE)
+    # model.set_training(False)
 
     image_dataset = ShopeeImageDataset(test_df,transform=get_test_transforms(),train=False)
     image_loader = torch.utils.data.DataLoader(
@@ -453,23 +463,24 @@ def get_test_embeddings(test_df):
     embeds = []
     with torch.no_grad():
         for img,label in tqdm(image_loader): 
-            print(img.size)
             img = img.cuda()
             label = label.cuda()
             feat,_ = model(img,label)
-            image_embeddings = feat.detach().cpu().numpy()
+            # image_embeddings = feat.detach().cpu().numpy()
+            image_embeddings=feat
             embeds.append(image_embeddings)
     
     del model
-    image_embeddings = np.concatenate(embeds)
+    # image_embeddings = np.concatenate(embeds)
+    image_embeddings = torch.cat(embeds)
     print(f'Our image embeddings shape is {image_embeddings.shape}')
     del embeds
     gc.collect()
     return image_embeddings
 
-def eval(train, destination="oof_eca_nfnet_l0_only", threshold=0.36):
+def eval(train, destination="oof_eca_nfnet_l1", threshold=0.36):
     imagefeat=get_test_embeddings(train)
-    # print(imagefeat[0].shape)
+    
     print(f"got embeddings! threshold={threshold}")
     print("image embeddings shape", imagefeat.shape)
 
@@ -487,3 +498,13 @@ def eval(train, destination="oof_eca_nfnet_l0_only", threshold=0.36):
     print(f"CV score for eca_nfnet_l0_arcface_{threshold} = ", train.f1.mean())
 
     return train
+
+def show_mode():
+    from torchsummary import summary
+    model = ShopeeModel()
+    model.eval()
+    model = replace_activations(model, torch.nn.SiLU, Mish()) ###
+    model.load_state_dict(torch.load(CFG.MODEL_PATH))
+    model = model.to(CFG.DEVICE)
+    
+    # sumary(model,(BATCH_SIZE,IMG_SIZE,IMG_SIZE))

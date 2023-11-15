@@ -37,7 +37,8 @@ class CFG:
     compute_cv = True  # set False to train model for submission
 
     ### BERT
-    bert_model_name = "../input/shopee-models/paraphrase-xlm-r-multilingual-v1"
+    # bert_model_name = "../input/shopee-models/paraphrase-multilingual-mpnet-base-v2"
+    bert_model_name = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 
     max_length = 128
 
@@ -418,7 +419,6 @@ class ShopeeBertModel(nn.Module):
             easy_margin=False,
             ls_eps=0.0,
         )
-        self.traing=True
 
     def _init_params(self):
         nn.init.xavier_normal_(self.classifier.weight)
@@ -431,7 +431,6 @@ class ShopeeBertModel(nn.Module):
 
     def forward(self, texts, labels=torch.tensor([0])):
         features = self.extract_features(texts)
-        # print(self.training)
         if self.training:
             logits = self.final(features, labels.to(CFG.device))
             return logits
@@ -562,7 +561,7 @@ def get_valid_embeddings(df, column, model, chunk=32):
                     model_output = model(titles)
             else:
                 model_output = model(titles)
-        
+
         bert_embeddings[i : i + chunk] = model_output
 
     del model, titles, model_output
@@ -643,7 +642,6 @@ def run_training(train_df, valid_df, test_df, destination, threshold):
         )
 
         valid_embeddings = get_valid_embeddings(valid_df, "title", model)
-        # print(valid_embeddings.shape)
         valid_embeddings = valid_embeddings.detach().cpu().numpy()
         print(f"Our text embeddings shape is {valid_embeddings.shape}, type is {type(valid_embeddings)}")
         valid_df = get_KNN.get_valid_neighbors(
@@ -666,7 +664,7 @@ def run_training(train_df, valid_df, test_df, destination, threshold):
 
 
 # %%
-def train(df, destination="oof_xlm_arcface", threshold=0.4):
+def train(df, destination="mpnet_v2", threshold=0.4):
     init()
     
     # data loader
@@ -684,8 +682,7 @@ def train(df, destination="oof_xlm_arcface", threshold=0.4):
 
     # train_df = df[df["fold"] != CFG.TEST_FOLD].reset_index(drop=True)
     # train_df = train_df[train_df["fold"] != CFG.VALID_FOLD].reset_index(drop=True)
-    # train_df = df[df["fold"] != CFG.VALID_FOLD].reset_index(drop=True)
-    train_df = df
+    train_df = df[df["fold"] != CFG.VALID_FOLD].reset_index(drop=True)
     valid_df = df[df["fold"] == CFG.VALID_FOLD].reset_index(drop=True)
 
     test_df = None
@@ -703,7 +700,7 @@ def get_test_embeddings(df, column, chunk=32):
     model = ShopeeBertModel()
     model.eval()
     model.load_state_dict(torch.load(CFG.save_model_path))
-    # model.set_training(False)
+    model.set_training(False)
     model = model.to(CFG.device)
     
     bert_embeddings = torch.zeros((df.shape[0], 768)).to(CFG.device)
@@ -713,7 +710,7 @@ def get_test_embeddings(df, column, chunk=32):
         ncols=80,
     ):
         titles = []
-        for idx, title in enumerate(df[column][i:i + chunk].values):
+        for title in df[column][i : i + chunk].values:
             try:
                 title = title.encode("utf-8").decode("unicode_escape")
                 title = title.encode("ascii", "ignore").decode("unicode_escape")
@@ -739,7 +736,7 @@ def get_test_embeddings(df, column, chunk=32):
     return bert_embeddings
 
 
-def eval(test_df, destination="oof_xlm_arcface", threshold=0.4):
+def eval(test_df, destination="mpnet_v2", threshold=0.4):
     init()
     
     test_embeddings = get_test_embeddings(test_df, "title")
@@ -750,6 +747,6 @@ def eval(test_df, destination="oof_xlm_arcface", threshold=0.4):
     )
     del test_embeddings
     gc.collect()
-    print(f"CV score for xlm_arcface_{threshold} = ", test_df.f1.mean())
+    print(f"CV score for mpnet_v2_{threshold} = ", test_df.f1.mean())
 
     return test_df
